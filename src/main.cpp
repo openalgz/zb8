@@ -79,6 +79,41 @@ namespace zb8
          }
          return t;
       }();
+      
+      constexpr int32_t calculate_cost(const uint8_t value) noexcept {
+         int32_t cost = 0;
+         int32_t zeros = 0;
+         int32_t ones = 0;
+
+          // Iterate over each bit of the uint8_t value
+          for (int i = 0; i < 8; ++i) {
+              // Check if the current bit is 1
+              if ((value >> i) & 1) {
+                 if (ones == 0) {
+                    ++cost; // For encountering a one
+                    zeros = 0;
+                 }
+                 ++cost;
+                 ++ones;
+              } else {
+                 if (zeros == 0) {
+                    ++cost;
+                    ones = 0;
+                 }
+                 ++zeros;
+              }
+          }
+
+          return cost;
+      }
+
+      constexpr std::array<uint8_t, 256> cost_table = []{
+         std::array<uint8_t, 256> t{};
+         for (uint32_t i = 0; i < 256; ++i) {
+            t[i] = calculate_cost(~i);
+         }
+         return t;
+      }();
    }
    
    inline void compress(const std::string_view in, std::string& out)
@@ -186,22 +221,35 @@ namespace zb8
             if (zeros)
             {
                const uint8_t zeros_layout = detail::extract_msbs(zeros);
+               int32_t cost = detail::cost_table[zeros_layout];
                const auto[n_zeros, run_length] = detail::run_table[zeros_layout];
+               if (zeros_count && n_zeros && !uncompressed_count) {
+                  // if we can just append zeros, reduce the cost
+                  --cost;
+               }
+               else if (uncompressed_count && !n_zeros) {
+                  // if we can append uncompressed data
+                  --cost;
+               }
                
                if ((zeros_count || n_zeros) && uncompressed_count) {
                   write_uncompressed();
                }
                
                zeros_count += n_zeros;
-               write_zeros();
-               it += n_zeros;
+               if (zeros_count) {
+                  write_zeros();
+                  it += n_zeros;
+               }
                
                if (uncompressed_count == 0) {
                   u_ptr = it;
                }
                
-               it += run_length;
-               uncompressed_count += run_length;
+               const auto uncompressed_length = cost < 9 ? run_length : (8 - n_zeros);
+               //const auto uncompressed_length = run_length;
+               it += uncompressed_length;
+               uncompressed_count += uncompressed_length;
             }
             else {
                if (zeros_count) {
@@ -337,6 +385,14 @@ void assess_table()
    }
 }
 
+void assess_cost_table()
+{
+   using namespace zb8::detail;
+   for (uint32_t i = 0; i < 256; ++i) {
+      std::cout << i << ": " << std::bitset<8>(i) << " | " << int(cost_table[i]) << '\n';
+   }
+}
+
 void profile()
 {
    /*std::vector<uint64_t> vec;
@@ -367,7 +423,7 @@ void profile()
    std::mt19937_64 generator{};
    std::string data;
    
-   for (size_t i = 0; i < 100'000 * sizeof(uint64_t); ++i) {
+   for (size_t i = 0; i < 1'000'000 * sizeof(uint64_t); ++i) {
       data.push_back(char(!bool(dist(generator))));
       //data.push_back(char(0));
       //data.push_back(char(1));
@@ -406,5 +462,6 @@ void profile()
 int main() {
    profile();
    //assess_table();
+   //assess_cost_table();
    return 0;
 }
