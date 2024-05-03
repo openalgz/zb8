@@ -30,9 +30,12 @@ namespace zb8
    constexpr uint32_t header_size = 8; // encode the uncompressed size
    constexpr uint64_t uncompressed_flag = 0x8000000000000000;
    
-   constexpr auto mark_zeros(const uint64_t chunk) noexcept
+   namespace detail
    {
-      return (((chunk - 0x0101010101010101u) & ~chunk) & 0x8080808080808080u);
+      constexpr auto mark_zeros(const uint64_t chunk) noexcept
+      {
+         return (((chunk - 0x0101010101010101u) & ~chunk) & 0x8080808080808080u);
+      }
    }
    
    inline void compress(const std::string_view in, std::string& out)
@@ -136,7 +139,7 @@ namespace zb8
          
          if (chunk)
          {
-            const uint64_t zeros = mark_zeros(chunk);
+            const uint64_t zeros = detail::mark_zeros(chunk);
             if (zeros)
             {
                const uint32_t n_zeros = std::countr_zero(chunk) >> 3;
