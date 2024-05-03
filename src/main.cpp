@@ -48,10 +48,10 @@ namespace zb8
          return (x * 0x2040810204081) >> 56;
       }
       
-      constexpr uint8_t calculate_cost(const uint8_t value, const bool zero_lead) noexcept {
-         uint8_t cost = 0;
-         uint8_t zeros = 0;
-         uint8_t ones = 0;
+      constexpr int32_t calculate_cost(const uint8_t value) noexcept {
+         int32_t cost = 0;
+         int32_t zeros = 0;
+         int32_t ones = 0;
 
           // Iterate over each bit of the uint8_t value
           for (int i = 0; i < 8; ++i) {
@@ -71,13 +71,6 @@ namespace zb8
                  ++zeros;
               }
           }
-         
-         if (zero_lead && (value % 2 == 0)) {
-            // even numbers have leading zeros
-            // if we are just adding zeros to a list of zeros
-            // then we can reduce the cost by one
-            --cost;
-         }
 
           return cost;
       }
@@ -85,15 +78,7 @@ namespace zb8
       constexpr std::array<uint8_t, 256> cost_table = []{
          std::array<uint8_t, 256> t{};
          for (uint32_t i = 0; i < 256; ++i) {
-            t[i] = calculate_cost(i, false);
-         }
-         return t;
-      }();
-
-      constexpr std::array<uint8_t, 256> cost_table_zero_lead = []{
-         std::array<uint8_t, 256> t{};
-         for (uint32_t i = 0; i < 256; ++i) {
-            t[i] = calculate_cost(i, true);
+            t[i] = calculate_cost(i);
          }
          return t;
       }();
@@ -203,9 +188,7 @@ namespace zb8
             const uint64_t zeros = detail::mark_zeros(chunk);
             if (zeros)
             {
-               const uint8_t zeros_layout = detail::extract_msbs(zeros);
-               const uint8_t n_zeros = std::countr_one(zeros_layout);
-               //const uint8_t n_zeros = std::countr_zero(chunk) >> 3;
+               const uint8_t n_zeros = std::countr_zero(chunk) >> 3;
                
                if ((zeros_count || n_zeros) && uncompressed_count) {
                   write_uncompressed();
@@ -229,7 +212,6 @@ namespace zb8
             }
             else {
                if (zeros_count) {
-                  write_uncompressed();
                   write_zeros();
                }
                
@@ -242,6 +224,10 @@ namespace zb8
             }
          }
          else {
+            if (uncompressed_count) {
+               write_uncompressed();
+            }
+            
             zeros_count += 8;
             it += 8;
          }
@@ -353,7 +339,7 @@ void testing_swar()
 void assess_table()
 {
    for (uint32_t i = 0; i < 256; ++i) {
-      std::cout << i << ": " << std::bitset<8>(i) << " | " << int(zb8::detail::cost_table_zero_lead[i]) << '\n';
+      std::cout << i << ": " << std::bitset<8>(i) << " | " << int(zb8::detail::cost_table[i]) << '\n';
    }
 }
 
@@ -383,7 +369,7 @@ void profile()
    data.resize(vec.size() * sizeof(double));
    std::memcpy(data.data(), vec.data(), vec.size() * sizeof(double));*/
    
-   std::uniform_int_distribution<uint16_t> dist{0, 2};
+   std::uniform_int_distribution<uint16_t> dist{0, 15};
    std::mt19937_64 generator{};
    std::string data;
    
@@ -424,7 +410,7 @@ void profile()
 }
 
 int main() {
-   //profile();
-   assess_table();
+   profile();
+   //assess_table();
    return 0;
 }
