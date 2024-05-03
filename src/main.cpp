@@ -345,14 +345,13 @@ void profile()
    for (size_t i = 0; i < 100'000; ++i)
    {
       //const auto v = 100 * std::sin(double(i));
+      //const auto v = int(100 * std::sin(double(i)));
       //const auto v = double(i);
       //const auto v = uint64_t(i);
-      //const uint64_t v = i / 3;
+      const uint64_t v = i / 3;
       //const uint64_t v = 0;
-      //auto& element = data.emplace_back();
-      //std::memcpy(&element, &v, 8);
-      
       //const auto v = 1000 * std::sin(double(i));
+      
       auto& element = vec.emplace_back();
       std::memcpy(&element, &v, 8);
    }
@@ -365,7 +364,7 @@ void profile()
    data.resize(vec.size() * sizeof(double));
    std::memcpy(data.data(), vec.data(), vec.size() * sizeof(double));*/
    
-   std::uniform_int_distribution<uint16_t> dist{0, 15};
+   std::uniform_int_distribution<uint16_t> dist{0, 150};
    std::mt19937_64 generator{};
    std::string data;
    
