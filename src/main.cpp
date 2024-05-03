@@ -48,37 +48,34 @@ namespace zb8
          return (x * 0x2040810204081) >> 56;
       }
       
-      constexpr int32_t calculate_cost(const uint8_t value) noexcept {
-         int32_t cost = 0;
+      constexpr int32_t uncompressed_run(const uint8_t value) noexcept {
+         // ones indicate uncompressed bytes
          int32_t zeros = 0;
-         int32_t ones = 0;
+         int32_t uncompressed = 0;
+         
+         bool uncompressed_start = value & 0b00000001;
 
-          // Iterate over each bit of the uint8_t value
           for (int i = 0; i < 8; ++i) {
               // Check if the current bit is 1
               if ((value >> i) & 1) {
-                 if (ones == 0) {
-                    ++cost; // For encountering a one
-                    zeros = 0;
-                 }
-                 ++cost;
-                 ++ones;
+                 ++uncompressed;
+                 uncompressed_start = true;
               } else {
-                 if (zeros == 0) {
-                    ++cost;
-                    ones = 0;
+                 if (uncompressed_start) {
+                    break; // end of run
                  }
                  ++zeros;
               }
           }
 
-          return cost;
+          return uncompressed;
       }
 
-      constexpr std::array<uint8_t, 256> cost_table = []{
-         std::array<uint8_t, 256> t{};
+      constexpr std::array<uint8_t[2], 256> run_table = []{
+         std::array<uint8_t[2], 256> t{};
          for (uint32_t i = 0; i < 256; ++i) {
-            t[i] = calculate_cost(i);
+            t[i][0] = std::countr_one(uint8_t(i)); // ones represent zeros
+            t[i][1] = uncompressed_run(~i); // ones represent uncompressed bytes
          }
          return t;
       }();
@@ -188,7 +185,8 @@ namespace zb8
             const uint64_t zeros = detail::mark_zeros(chunk);
             if (zeros)
             {
-               const uint8_t n_zeros = std::countr_zero(chunk) >> 3;
+               const uint8_t zeros_layout = detail::extract_msbs(zeros);
+               const auto[n_zeros, run_length] = detail::run_table[zeros_layout];
                
                if ((zeros_count || n_zeros) && uncompressed_count) {
                   write_uncompressed();
@@ -202,13 +200,8 @@ namespace zb8
                   u_ptr = it;
                }
                
-               uint32_t i = n_zeros;
-               for (; i < 8; ++i, ++it) {
-                  if (*it == 0) {
-                     break;
-                  }
-               }
-               uncompressed_count += i - n_zeros;
+               it += run_length;
+               uncompressed_count += run_length;
             }
             else {
                if (zeros_count) {
@@ -338,8 +331,9 @@ void testing_swar()
 
 void assess_table()
 {
+   using namespace zb8::detail;
    for (uint32_t i = 0; i < 256; ++i) {
-      std::cout << i << ": " << std::bitset<8>(i) << " | " << int(zb8::detail::cost_table[i]) << '\n';
+      std::cout << i << ": " << std::bitset<8>(i) << " | " << int(run_table[i][0]) << ", " << int(run_table[i][1]) << '\n';
    }
 }
 
