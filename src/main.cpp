@@ -32,10 +32,71 @@ namespace zb8
    
    namespace detail
    {
-      constexpr auto mark_zeros(const uint64_t chunk) noexcept
+      constexpr uint64_t mark_zeros(const uint64_t chunk) noexcept
       {
-         return (((chunk - 0x0101010101010101u) & ~chunk) & 0x8080808080808080u);
+         //return (((chunk - 0x0101010101010101u) & ~chunk) & 0x8080808080808080u);
+         constexpr uint64_t mask = 0x7F7F7F7F7F7F7F7Full;
+         const uint64_t t0 = (((chunk & mask) + mask) | chunk);
+         return (t0 & 0x8080808080808080ull) ^ 0x8080808080808080ull;
       }
+      
+      // https://stackoverflow.com/questions/12181352/high-order-bits-take-them-and-make-a-uint64-t-into-a-uint8-t
+      // The multiplications all the bits into the most significant byte,
+      // and the shift moves them to the least significant byte.
+      // Since multiplication is fast on most modern CPUs this shouldn't be much slower than using assembly.
+      constexpr uint8_t extract_msbs(const uint64_t x) noexcept {
+         return (x * 0x2040810204081) >> 56;
+      }
+      
+      constexpr uint8_t calculate_cost(const uint8_t value, const bool zero_lead) noexcept {
+         uint8_t cost = 0;
+         uint8_t zeros = 0;
+         uint8_t ones = 0;
+
+          // Iterate over each bit of the uint8_t value
+          for (int i = 0; i < 8; ++i) {
+              // Check if the current bit is 1
+              if ((value >> i) & 1) {
+                 if (ones == 0) {
+                    ++cost; // For encountering a one
+                    zeros = 0;
+                 }
+                 ++cost;
+                 ++ones;
+              } else {
+                 if (zeros == 0) {
+                    ++cost;
+                    ones = 0;
+                 }
+                 ++zeros;
+              }
+          }
+         
+         if (zero_lead && (value % 2 == 0)) {
+            // even numbers have leading zeros
+            // if we are just adding zeros to a list of zeros
+            // then we can reduce the cost by one
+            --cost;
+         }
+
+          return cost;
+      }
+
+      constexpr std::array<uint8_t, 256> cost_table = []{
+         std::array<uint8_t, 256> t{};
+         for (uint32_t i = 0; i < 256; ++i) {
+            t[i] = calculate_cost(i, false);
+         }
+         return t;
+      }();
+
+      constexpr std::array<uint8_t, 256> cost_table_zero_lead = []{
+         std::array<uint8_t, 256> t{};
+         for (uint32_t i = 0; i < 256; ++i) {
+            t[i] = calculate_cost(i, true);
+         }
+         return t;
+      }();
    }
    
    inline void compress(const std::string_view in, std::string& out)
@@ -142,7 +203,9 @@ namespace zb8
             const uint64_t zeros = detail::mark_zeros(chunk);
             if (zeros)
             {
-               const uint32_t n_zeros = std::countr_zero(chunk) >> 3;
+               const uint8_t zeros_layout = detail::extract_msbs(zeros);
+               const uint8_t n_zeros = std::countr_one(zeros_layout);
+               //const uint8_t n_zeros = std::countr_zero(chunk) >> 3;
                
                if ((zeros_count || n_zeros) && uncompressed_count) {
                   write_uncompressed();
@@ -264,7 +327,38 @@ namespace zb8
 #include <chrono>
 #include <iostream>
 
-int main() {
+void testing_swar()
+{
+   /*//uint64_t chunk = 0b0000000000000000000000000000000100000000000000010000000100000000;
+   uint64_t chunk = 0b0000000000000000000000000000000000000000000000000000000100000000;
+   //uint8_t chunk = 0b00000001;
+   constexpr size_t N = sizeof(chunk) * 8;
+   std::cout << std::bitset<N>(chunk) << '\n';
+   // (((chunk - 0x0101010101010101u) & ~chunk) & 0x8080808080808080u);
+   std::cout << std::bitset<N>(chunk - 0x0101010101010101u) << '\n';
+   std::cout << std::bitset<N>(~chunk) << '\n';
+   std::cout << std::bitset<N>((chunk - 0x0101010101010101u) & ~chunk) << '\n';
+   std::cout << std::bitset<N>(((chunk - 0x0101010101010101u) & ~chunk) & 0x8080808080808080u) << '\n';
+   
+   {
+      uint64_t word = chunk;
+      constexpr uint64_t mask = 0x7F7F7F7F7F7F7F7Full;
+      uint64_t t0 = (((word & mask) + mask) | word);
+      uint64_t t2 = (t0 & 0x8080808080808080ull) ^ 0x8080808080808080ull;
+      
+      std::cout << std::bitset<N>(t2) << '\n';
+   }*/
+}
+
+void assess_table()
+{
+   for (uint32_t i = 0; i < 256; ++i) {
+      std::cout << i << ": " << std::bitset<8>(i) << " | " << int(zb8::detail::cost_table_zero_lead[i]) << '\n';
+   }
+}
+
+void profile()
+{
    /*std::vector<uint64_t> vec;
    for (size_t i = 0; i < 100'000; ++i)
    {
@@ -327,4 +421,10 @@ int main() {
    if (data != original) {
       throw std::runtime_error("Decompression failed!");
    }
+}
+
+int main() {
+   //profile();
+   assess_table();
+   return 0;
 }
