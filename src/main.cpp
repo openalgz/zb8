@@ -1,10 +1,11 @@
 #include <algorithm>
+#include <array>
 #include <bit>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <string_view>
 #include <type_traits>
-#include <vector>
 
 // ZB8: Zero Byte Compression
 
@@ -297,6 +298,7 @@ namespace zb8
 #include <random>
 #include <chrono>
 #include <iostream>
+#include <vector>
 
 void testing_swar()
 {
