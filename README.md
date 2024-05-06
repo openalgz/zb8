@@ -36,6 +36,10 @@ zb8::decompress(in, out);
 
 It is common to prepare data for the core ZB8 compression algorithm, in order to expose zero bytes. The ideal preparation is data dependent and may include delta encoding or xor encoding.
 
+> [!IMPORTANT]
+>
+> Planned algorithms below, not currently implemented.
+
 ZB8 provides higher level compression algorithms with data preparation:
 
 - **zb8::xor_sequence**
