@@ -1,5 +1,6 @@
 #include "zb8/zb8.hpp"
 
+#include <bitset>
 #include <cmath>
 #include <random>
 #include <chrono>
