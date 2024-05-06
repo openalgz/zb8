@@ -1,6 +1,10 @@
 # ZB8
 *Fast, simple, zero byte compression.*
 
+> [!WARNING]
+>
+> This project is in pre-release development.
+
 ZB8 is especially useful for sending differences between datasets, where the data is often the same.
 
 Key details:
