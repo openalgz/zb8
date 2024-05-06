@@ -1,15 +1,18 @@
 # ZB8
 *Fast, simple, zero byte compression.*
 
+ZB8 is especially useful for sending differences between datasets, where the data is often the same.
+
 Key details:
 
 - Core algorithm compresses zero bytes
 - Maximum compression ratio of nearly 22000
-  - If your data could be all zeros, ZB8 is fantastic
+  - If your data is often all zeros, ZB8 is fantastic
+- Byte-level encoding for high performance
 
-> [!NOTE]
->
-> If ZB8 cannot compress your data efficiently then it simply encodes the original data with an 8 byte header. ZB8 will only ever increase your data size by 8 bytes.
+## Max 8 byte size increase
+
+If ZB8 cannot compress your data efficiently then it simply encodes the original data with an 8 byte header. ZB8 will only ever increase your data size by 8 bytes.
 
 ## Core Algorithm
 
@@ -25,7 +28,7 @@ zb8::compress(in, out);
 zb8::decompress(in, out);
 ```
 
-## Data Preparation
+## Advanced Algorithms
 
 It is common to prepare data for the core ZB8 compression algorithm, in order to expose zero bytes. The ideal preparation is data dependent and may include delta encoding or xor encoding.
 

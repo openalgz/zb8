@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <vector>
 
-// Zero Byte 8-Chunk Compression: ZB8
+// ZB8: Zero Byte Compression
 
 // ZB8 is focused on compressing zero bytes.
 // ZB8 has a maximum compression ratio of nearly 22000.
@@ -14,16 +14,6 @@
 // If ZB8 cannot compress your data efficiently
 // then it simply sends the original data with an 8 byte header.
 // ZB8 will only ever increase your data size by 8 bytes.
-
-// Data preparation:
-// It is common to have to prepare for ZB8, in order to expose zero bytes.
-// The ideal preparation is data dependent and may include delta encoding or xor encoding.
-// ZB8 provides higher level compression algorithms with data preparation:
-// - zb8::xor_sequence...
-// - zb8::xor_difference...
-// - zb8::delta...
-// - zb8::delta_delta...
-// The core algorithms are simply zb8::compress and zb8::decompress.
 
 namespace zb8
 {
