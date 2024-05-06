@@ -1,33 +1,42 @@
 cmake_minimum_required(VERSION 3.24)
-project(zb8)
 
-set(CMAKE_CXX_STANDARD 20)
+include(cmake/prelude.cmake)
 
-file(GLOB srcs src/*.cpp include/*.hpp)
+project(
+    zb8
+    VERSION 0.2.1
+    LANGUAGES CXX
+)
 
-# Organize files into directories
-foreach(FILE ${srcs})
-   # Get the directory of the source file
-   get_filename_component(PARENT_DIR "${FILE}" PATH)
+include(cmake/project-is-top-level.cmake)
+include(cmake/variables.cmake)
 
-   # Remove common directory prefix to make the group
-   string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}" "" GROUP "${PARENT_DIR}")
+add_library(zb8_zb8 INTERFACE)
+add_library(zb8::zb8 ALIAS zb8_zb8)
 
-if(MSVC)
-   # Make sure we are using windows slashes
-   string(REPLACE "/" "\\" GROUP "${GROUP}")
+if (MSVC)
+   string(REGEX MATCH "\/cl(.exe)?$" matched_cl ${CMAKE_CXX_COMPILER})
+   if (matched_cl)
+      # for a C++ standards compliant preprocessor, not needed for clang-cl
+      target_compile_options(zb8_zb8 INTERFACE "/Zc:preprocessor" /GL /permissive- /Zc:lambda)
+      target_link_options(zb8_zb8 INTERFACE /LTCG /INCREMENTAL:NO)
+   endif()
+else()
+   target_compile_options(zb8_zb8 INTERFACE "-Wno-missing-braces")
 endif()
 
-   # Group into "Source Files" and "Header Files"
-   if ("${FILE}" MATCHES ".*\\.cpp")
-      set(GROUP "Source Files${GROUP}")
-   elseif("${FILE}" MATCHES ".*\\.h")
-      set(GROUP "Header Files${GROUP}")
-   endif()
+set_property(TARGET zb8_zb8 PROPERTY EXPORT_NAME ${PROJECT_NAME})
 
-   source_group("${GROUP}" FILES "${FILE}")
-endforeach()
+target_compile_features(zb8_zb8 INTERFACE cxx_std_20)
+target_include_directories(
+   zb8_zb8 ${warning_guard}
+    INTERFACE "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+)
 
-include_directories(include)
+if(NOT CMAKE_SKIP_INSTALL_RULES)
+  include(cmake/install-rules.cmake)
+endif()
 
-add_executable(${PROJECT_NAME} ${srcs})
+if (PROJECT_IS_TOP_LEVEL)
+  include(cmake/dev-mode.cmake)
+endif()
